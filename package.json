@@ -1,0 +1,20 @@
+{
+  "name": "interaction",
+  "version": "0.0.1",
+  "private": true,
+  "devDependencies": {
+    "shadow-cljs": "2.8.39"
+  },
+  "dependencies": {
+    "create-react-class": "^15.6.3",
+    "d3": "^5.9.2",
+    "highlight.js": "^9.15.8",
+    "plotly.js": "^1.48.3",
+    "react": "^16.8.6",
+    "react-bulma-components": "^2.3.0",
+    "react-dom": "^16.8.6",
+    "react-flip-move": "^3.0.3",
+    "react-highlight.js": "^1.0.7",
+    "react-plotly.js": "^2.3.0"
+  }
+}
