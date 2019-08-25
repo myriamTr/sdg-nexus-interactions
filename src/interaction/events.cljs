@@ -64,6 +64,22 @@
    {:db (assoc-in db [:data :interaction] (js->clj (.csvParse d3 result)))}))
 
 (reg-event-fx
+ :request-references-data
+ (fn [{db :db} _]
+   {:db db
+    :http-xhrio {:method :get
+                 :uri "data/references.csv"
+                 :format (ajax/json-request-format)
+                 :response-format (ajax/text-response-format)
+                 :on-success [:request-references-data-success]
+                 :on-failure [:api-request-error]}}))
+
+(reg-event-fx
+ :request-references-data-success
+ (fn [{db :db} [_ result]]
+   {:db (assoc-in db [:data :references] (js->clj (.csvParse d3 result)))}))
+
+(reg-event-fx
  :api-request-error
  (fn [{:keys [db]} [_ response]]
  {:db (update-in db [:errors]

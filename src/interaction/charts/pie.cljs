@@ -8,6 +8,8 @@
    [bulma-cljs.core :as b]
    ["react-plotly.js" :default react-plotly]))
 
+(def chart-colors (reverse ["#337BAE" "#FD3C3C"]))
+
 (def plotly-common-args
   {:layout {:showlegend true
             :autosize true
@@ -43,18 +45,25 @@
   ([v m] (sdgs->trace v m [10 30]))
   ([[sdg-from sdg-to] m bins]
    (let [values ((juxt :positive :negative) m)
-         total (reduce + values)]
+         total (reduce + values)
+         icon-html " &#x2B95; "
+         trace-hover-name (str sdg-from icon-html sdg-to)]
      {:values (reverse values)
       :type :pie
       :labels (reverse ["Co-benefits" "Trade-offs"])
       :textinfo "none"
       :domain  {:row (-> sdg-from sdg->domain inc)
                 :column (-> sdg-to sdg->domain  inc)}
-      :name (str sdg-from "->" sdg-to)
-      :hole (cond (<= total (first bins)) 0.7 (<= total (second bins)) 0.5 :else 0.3)
-      :opacity (cond (<= total (first bins)) 0.3 (<= total (second bins)) 0.7 :else 1)
+      :name trace-hover-name
+      :hole (cond (<= total (first bins)) 0.7 (<= total (second bins)) 0.5
+                  :else 0.3)
+      :hovertemplate
+      (str "<b>" trace-hover-name "</b>"
+           "<br>%{label}<br>%{value}<br>%{percent}<br>" "<extra></extra>")
+      :opacity (cond (<= total (first bins)) 0.3 (<= total (second bins)) 0.7
+                     :else 1)
       :sort false
-      :marker {:colors (reverse ["#478BFF" "#FF2E33"])}})))
+      :marker {:colors chart-colors}})))
 
 (defn pie [data polarity]
   (let [traces (reduce-kv (fn [m k v] (assoc m k (sdgs->trace k v))) {} data)
@@ -77,9 +86,11 @@
           (assoc-in
            [:layout :images]
            (into
-            (mapv #(assoc image-map :source (sdg->icon-path %) :x 0 :y (- 0.995 (* % (/ 1 18))))
+            (mapv #(assoc image-map :source (sdg->icon-path %) :x 0
+                          :y (- 0.995 (* % (/ 1 18))))
                   (range 1 18))
-            (mapv #(assoc image-map :source (sdg->icon-path %) :x (* % (/ 1 18)) :y 0.9925)
+            (mapv #(assoc image-map :source (sdg->icon-path %)
+                          :x (* % (/ 1 18)) :y 0.9925)
                   (range 1 18))))
           (assoc-in [:data] (vals traces))
           (assoc :onClick on-click))]]))
@@ -91,7 +102,15 @@
   ([[target-from target-to sdg-from sdg-to] m bins]
    (let [values ((juxt :positive :negative) m)
          total (reduce + values)
-         iinc (partial + 2)]
+         iinc (partial + 2)
+         trace-name (if-not (= "" target-from target-to)
+                (str target-from "->" target-to)
+                (str sdg-from "->" sdg-to))
+         icon-html " &#x2B95; "
+         trace-hover-name (if-not (= "" target-from target-to)
+                       (str target-from icon-html target-to)
+                       (str sdg-from icon-html sdg-to))]
+
      {:values (reverse values)
       :type :pie
       :labels (reverse ["Co-benefits" "Trade-offs"])
@@ -103,13 +122,16 @@
                 0 #_ (inc (-> sdg-from sdgs->targets :targets))))
        :column (let [v (target->domain target-to)]
                  (if-not (js/isNaN v) (inc v) 0))}
-      :name (if-not (= "" target-from target-to)
-              (str target-from "->" target-to)
-              (str sdg-from "->" sdg-to))
-      :hole (cond (<= total (first bins)) 0.7 (<= total (second bins)) 0.5 :else 0.3)
-      :opacity (cond (<= total (first bins)) 0.3 (<= total (second bins)) 0.7 :else 1)
+      :name trace-name
+      :hovertemplate
+      (str "<b>" trace-hover-name "</b>"
+           "<br>%{label}<br>%{value}<br>%{percent}<br>" "<extra></extra>")
+      :hole (cond (<= total (first bins)) 0.7 (<= total (second bins)) 0.5
+                  :else 0.3)
+      :opacity (cond (<= total (first bins)) 0.3 (<= total (second bins)) 0.7
+                     :else 1)
       :sort false
-      :marker {:colors (reverse ["#478BFF" "#FF2E33"])}})))
+      :marker {:colors chart-colors}})))
 
 (defn trace-legend [target delta direction]
   {:x [0]
@@ -154,16 +176,18 @@
           (assoc-in [:layout :title :text] "Target Interaction")
           (assoc-in [:style] {:width (+ 200 (* 100 (inc count-targets-to)))
                               :height (+ 110 (* 100 (iinc count-targets-from)))})
-          (assoc-in [:layout :images]
-                    (into
-                     (mapv #(assoc image-map
-                                   :source (sdg->icon-path sdg-from (str sdg-from "." %))
-                                   :x -0.005
-                                   :y (- 0.995 (* % (/ 1 (+ 2 count-targets-from)))))
-                           (range 1 (inc count-targets-from)))
-                     (mapv #(assoc image-map :source (sdg->icon-path sdg-to (str sdg-to "." %))
-                                   :x (* % (/ 1 (+ 1 count-targets-to)))
-                                   :y 1)
-                           (range 1 (inc count-targets-to)))))
+          (assoc-in
+           [:layout :images]
+           (into
+            (mapv #(assoc image-map
+                          :source (sdg->icon-path sdg-from (str sdg-from "." %))
+                          :x -0.005
+                          :y (- 0.995 (* % (/ 1 (+ 2 count-targets-from)))))
+                  (range 1 (inc count-targets-from)))
+            (mapv #(assoc image-map
+                          :source (sdg->icon-path sdg-to (str sdg-to "." %))
+                          :x (* % (/ 1 (+ 1 count-targets-to)))
+                          :y 1)
+                  (range 1 (inc count-targets-to)))))
           (assoc-in [:data] (vals traces))
           (assoc :onClick on-click))]]))

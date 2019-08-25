@@ -10,3 +10,6 @@
 (defn main []
   (rf/dispatch [:initialise-db])
   (r/render [app] (.getElementById js/document "app")))
+
+(defn ^:dev/after-load start []
+  (r/render [app] (.getElementById js/document "app")))

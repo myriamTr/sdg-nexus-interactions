@@ -27,6 +27,19 @@
     (map #(update % "Score" js/parseInt)))))
 
 (reg-sub
+ :references-data
+ (fn [db _]
+   (->> (get-in db [:data :references]))))
+
+(reg-sub
+ :references-data-map
+ :<- [:references-data]
+ (fn [data _]
+   (->> data
+        (group-by (fn [m] (get m "title")))
+        (reduce-kv #(assoc %1 %2 (first %3)) {}))))
+
+(reg-sub
  :sdg-from
  (fn [db _] (:sdg-from db)))
 

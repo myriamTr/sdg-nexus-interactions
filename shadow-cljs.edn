@@ -1,11 +1,10 @@
 ;; shadow-cljs configuration
 {:source-paths
- ["src/dev"
-  "src/main"
-  "src/test"]
+ ["src"]
 
  :dependencies
- [[cider/cider-nrepl "0.21.0"]
+ [[cider/cider-nrepl  "0.22.0-beta11"]
+  [cider/piggieback "0.4.1"]
   [bulma-cljs "0.1.4"]
   [reagent "0.8.1" :exclusions [cljsjs/react cljsjs/react-dom]]
   [re-frame "0.10.6"]
