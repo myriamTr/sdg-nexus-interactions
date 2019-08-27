@@ -20,7 +20,7 @@
    :style {:width 1200 :height 1080}
    :useResizeHandler true
    :config {:toImageButtonOptions
-            {:format "png" :height 560 :width 560 :scale 5}
+            {:format "png" :height 960 :width 1080 :scale 2.5}
             :editable false}})
 
 (defn sdg->icon-path
@@ -65,6 +65,29 @@
       :sort false
       :marker {:colors chart-colors}})))
 
+(defn trace-hover [target delta direction sdg+target]
+  {:values [100]
+   :type :pie
+   :textinfo "none"
+   :legend "false"
+   :marker {:colors ["rgba(255, 255, 255, 1)"]}
+   :labels "Hover"
+   :name sdg+target
+   :text [(id->title sdg+target)]
+   :showlegend false
+   :hovertemplate (->>
+                   (str/split (str (id->title sdg+target) ".") #"\s")
+                   (partition-all 5)
+                   (mapv #(clojure.string/join " " %))
+                   (interpose "<br>")
+                   flatten
+                   (clojure.string/join " ")
+                   (str "<extra></extra>"))
+
+   :domain (case direction
+             :to {:row 0 :column target}
+             :from {:row target :column 0})})
+
 (defn pie [data polarity]
   (let [traces (reduce-kv (fn [m k v] (assoc m k (sdgs->trace k v))) {} data)
         on-click
@@ -76,7 +99,11 @@
             (rf/dispatch [:select-sdg-from sdg-from])
             (rf/dispatch [:select-sdg-to sdg-to])))
         image-map {:xref :paper :yref :paper :xanchor :left :yanchor :top
-                   :sizex (/ 1 18) :sizey (/ 1 18)}]
+                   :sizex (/ 1 18) :sizey (/ 1 18)}
+        trace-hovers
+        (into
+         (mapv #(trace-hover % (/ 1 18) :from (str %)) (range 1 18))
+         (mapv #(trace-hover % (/ 1 18) :to (str %)) (range 1 18)))]
     [:<>
      [:> react-plotly
       (-> plotly-common-args
@@ -94,10 +121,11 @@
              (mapv #(assoc image-map :source (sdg->icon-path %)
                            :x (* % (/ 1 18)) :y 1.002)
                    (range 1 18))]))
-          (assoc-in [:data] (vals traces))
+          (assoc-in [:data] (into (vals traces) trace-hovers))
           (assoc :onClick on-click))]]))
 
 (defn target->domain [s] (-> s (clojure.string/split #"\.") last js/parseInt dec))
+
 
 (defn target->trace
   ([v m] (target->trace v m [2 4]))
@@ -135,28 +163,6 @@
       :sort false
       :marker {:colors chart-colors}})))
 
-(defn trace-hover [target delta direction sdg+target]
-  {:values [100]
-   ;; :labels []
-   :type :pie
-   :textinfo "none"
-   :legend "false"
-   :marker {:colors ["rgba(0, 0, 0, 0)"]}
-   :labels "Hover"
-   :name sdg+target
-   :text [(id->title sdg+target)]
-   :hovertemplate
-   (->> (str/split (id->title sdg+target) #"\s")
-        (partition-all 5)
-        (mapv #(clojure.string/join " " %))
-        (interpose "<br>")
-        flatten
-        (clojure.string/join " ")
-        (str "<extra></extra>"))
-
-   :domain (case direction
-             :to {:row 0 :column target #_(inc target #_(* target delta))}
-             :from {:row target #_(inc target #_(* target delta)) :column 0})})
 
 (defn pie-target [data [sdg-from sdg-to]]
   (let [iinc (partial + 2)
@@ -194,6 +200,9 @@
     [:<>
      [:> react-plotly
       (-> plotly-common-args
+          (assoc-in [:config :toImageButtonOptions]
+                    {:format "png" :height (+ 256 (* 108 count-targets-from))
+                     :width (+ 256 (* 108 count-targets-to)) :scale 2.5})
           (assoc-in [:layout :grid]
                     {:rows (-> count-targets-from (+ 2))
                      :columns (+ 1 count-targets-to)})
@@ -201,7 +210,7 @@
           (assoc-in [:layout :margin] {:l 0 :b 0 :t 60 :r 0})
           (assoc-in [:style] {:width (+ 200 (* 100 (inc count-targets-to)))
                               :height (+ 110 (* 100 (iinc count-targets-from)))})
-          #_(assoc-in
+          (assoc-in
            [:layout :images]
            (into
             (mapv #(assoc image-map
@@ -214,7 +223,5 @@
                           :x (* % (/ 1 (+ 1 count-targets-to)))
                           :y 1.015)
                   (range 1 (inc count-targets-to)))))
-          (assoc-in [:data] (into (vals traces) trace-hovers) #_(vals traces))
-          #_(into (vals traces) trace-hovers)
-          (assoc :onClick on-click)
-          #_(assoc :onHover (fn [m] (.log js/console m))))]]))
+          (assoc-in [:data] (into (vals traces) trace-hovers))
+          (assoc :onClick on-click))]]))
