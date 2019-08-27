@@ -1,6 +1,6 @@
 (ns interaction.charts.pie
   (:require
-   [interaction.db :refer [sdgs->targets]]
+   [interaction.db :refer [sdgs->targets id->title]]
    [cljs.pprint :as pprint]
    [clojure.string :as str]
    [reagent.core :as r]
@@ -17,7 +17,7 @@
             :title {:x 0.05 :xref :paper :y 1.2
                     :font {:size 24 :color "#7f7f7f"}}
             :grid {:rows 18 :columns 18}}
-   :style {:width 1080 :height 1080}
+   :style {:width 1200 :height 1080}
    :useResizeHandler true
    :config {:toImageButtonOptions
             {:format "png" :height 560 :width 560 :scale 5}
@@ -59,7 +59,7 @@
                   :else 0.3)
       :hovertemplate
       (str "<b>" trace-hover-name "</b>"
-           "<br>%{label}<br>%{value}<br>%{percent}<br>" "<extra></extra>")
+           "<br>%{label}<br>Weight: %{value}<br>%{percent}<br>" "<extra></extra>")
       :opacity (cond (<= total (first bins)) 0.3 (<= total (second bins)) 0.7
                      :else 1)
       :sort false
@@ -80,18 +80,20 @@
     [:<>
      [:> react-plotly
       (-> plotly-common-args
-          (assoc-in [:layout :title :text] "SDGs Interaction")
+          (assoc-in [:layout :title :text] "SDG-level interactions")
           (assoc-in [:layout :xaxis] {:title {:text "From SDG"} :type :category})
           (assoc-in [:layout :yaxis] {:title {:text "To SDG"} :type :category})
           (assoc-in
            [:layout :images]
-           (into
-            (mapv #(assoc image-map :source (sdg->icon-path %) :x 0
-                          :y (- 0.995 (* % (/ 1 18))))
-                  (range 1 18))
-            (mapv #(assoc image-map :source (sdg->icon-path %)
-                          :x (* % (/ 1 18)) :y 0.9925)
-                  (range 1 18))))
+           (reduce
+            #(into %1 %2) []
+            [[(assoc image-map :source "images/from_to.png" :x -0.002 :y 1.002)]
+             (mapv #(assoc image-map :source (sdg->icon-path %) :x -0.002
+                           :y (- 1 (* % (/ 1 18))))
+                   (range 1 18))
+             (mapv #(assoc image-map :source (sdg->icon-path %)
+                           :x (* % (/ 1 18)) :y 1.002)
+                   (range 1 18))]))
           (assoc-in [:data] (vals traces))
           (assoc :onClick on-click))]]))
 
@@ -125,7 +127,7 @@
       :name trace-name
       :hovertemplate
       (str "<b>" trace-hover-name "</b>"
-           "<br>%{label}<br>%{value}<br>%{percent}<br>" "<extra></extra>")
+           "<br>%{label}<br>Weight: %{value}<br>%{percent}<br>" "<extra></extra>")
       :hole (cond (<= total (first bins)) 0.7 (<= total (second bins)) 0.5
                   :else 0.3)
       :opacity (cond (<= total (first bins)) 0.3 (<= total (second bins)) 0.7
@@ -133,15 +135,28 @@
       :sort false
       :marker {:colors chart-colors}})))
 
-(defn trace-legend [target delta direction]
-  {:x [0]
-   :y [0]
-   :type :scatter
-   :mode "text"
-   :text [target]
+(defn trace-hover [target delta direction sdg+target]
+  {:values [100]
+   ;; :labels []
+   :type :pie
+   :textinfo "none"
+   :legend "false"
+   :marker {:colors ["rgba(0, 0, 0, 0)"]}
+   :labels "Hover"
+   :name sdg+target
+   :text [(id->title sdg+target)]
+   :hovertemplate
+   (->> (str/split (id->title sdg+target) #"\s")
+        (partition-all 5)
+        (mapv #(clojure.string/join " " %))
+        (interpose "<br>")
+        flatten
+        (clojure.string/join " ")
+        (str "<extra></extra>"))
+
    :domain (case direction
-             :from {:row 0 :column (* target delta)}
-             :to {:row (* target delta) :column 0})})
+             :to {:row 0 :column target #_(inc target #_(* target delta))}
+             :from {:row target #_(inc target #_(* target delta)) :column 0})})
 
 (defn pie-target [data [sdg-from sdg-to]]
   (let [iinc (partial + 2)
@@ -166,17 +181,27 @@
             (.log js/console target-from target-to point)
             (rf/dispatch [:set-active-tab :targets-details])
             (rf/dispatch [:select-target :from target-from])
-            (rf/dispatch [:select-target :to target-to])))]
+            (rf/dispatch [:select-target :to target-to])))
+        trace-hovers
+        (into
+         (mapv #(trace-hover % (/ 1 (+ 2 count-targets-from))
+                             :from (str sdg-from "." %))
+               (range 1 (inc count-targets-from)))
+         (mapv #(trace-hover % (/ 1 (+ 1 count-targets-to))
+                             :to (str sdg-to "." %))
+               (range 1 (inc count-targets-to))))]
+    (.log js/console trace-hovers)
     [:<>
      [:> react-plotly
       (-> plotly-common-args
           (assoc-in [:layout :grid]
                     {:rows (-> count-targets-from (+ 2))
                      :columns (+ 1 count-targets-to)})
-          (assoc-in [:layout :title :text] "Target Interaction")
+          (assoc-in [:layout :title :text] "Target-level interactions")
+          (assoc-in [:layout :margin] {:l 0 :b 0 :t 60 :r 0})
           (assoc-in [:style] {:width (+ 200 (* 100 (inc count-targets-to)))
                               :height (+ 110 (* 100 (iinc count-targets-from)))})
-          (assoc-in
+          #_(assoc-in
            [:layout :images]
            (into
             (mapv #(assoc image-map
@@ -187,7 +212,9 @@
             (mapv #(assoc image-map
                           :source (sdg->icon-path sdg-to (str sdg-to "." %))
                           :x (* % (/ 1 (+ 1 count-targets-to)))
-                          :y 1)
+                          :y 1.015)
                   (range 1 (inc count-targets-to)))))
-          (assoc-in [:data] (vals traces))
-          (assoc :onClick on-click))]]))
+          (assoc-in [:data] (into (vals traces) trace-hovers) #_(vals traces))
+          #_(into (vals traces) trace-hovers)
+          (assoc :onClick on-click)
+          #_(assoc :onHover (fn [m] (.log js/console m))))]]))

@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "devDependencies": {
-    "shadow-cljs": "2.8.45"
+    "shadow-cljs": "^2.8.45"
   },
   "dependencies": {
     "@fortawesome/free-regular-svg-icons": "^5.10.2",

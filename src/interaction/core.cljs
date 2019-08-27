@@ -9,7 +9,9 @@
 
 (defn main []
   (rf/dispatch [:initialise-db])
+  (rf/dispatch-sync [:boot-request-load])
   (r/render [app] (.getElementById js/document "app")))
 
 (defn ^:dev/after-load start []
+  (rf/clear-subscription-cache!)
   (r/render [app] (.getElementById js/document "app")))

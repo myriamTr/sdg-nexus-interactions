@@ -96,9 +96,9 @@
     (fn [sdg-from sdg-to]
       [b/columns
        [b/column {:class :is-half}
-        [input-field "From SGD"
+        [input-field "From SDG"
          {:value @s-from
-          :placeholder "From SGD"
+          :placeholder "From SDG"
           :on-change #(reset! s-from (-> % .-target .-value))
           :on-blur #(rf/dispatch [:select-sdg-from (-> % .-target .-value)])}]]
        [b/column {:class :is-half}
@@ -159,18 +159,26 @@
          [select-sdgs-for-targets-container]]))))
 
 (defn pie-score-distribution-sdg []
-  (let [data (rf/subscribe [:interaction-data-sdgs-pie-sum])]
-    (fn [] [:<> [pie @data :positive]])))
+  (let [data (rf/subscribe [:interaction-data-sdgs-pie-sum])
+        data-loaded? (rf/subscribe [:interaction-data-loaded?])]
+    (fn []
+      (if @data-loaded?
+        [:<> [pie @data :positive]]
+        [:div]))))
 
 (defn pie-score-distribution-target []
   (let [data (rf/subscribe [:interaction-data-sdgs-targets])
         sdg-from (rf/subscribe [:sdg-from])
-        sdg-to (rf/subscribe [:sdg-to])]
+        sdg-to (rf/subscribe [:sdg-to])
+        data-loaded? (rf/subscribe [:interaction-data-loaded?])]
     (fn []
       (let [sdg-link [@sdg-from @sdg-to]]
         [:<>
          [select-sdgs-for-targets-container]
-         [pie-target (get @data (mapv str sdg-link)) sdg-link]]))))
+         [:div {:style {:text-align :center}}
+          (if (and @data-loaded? @sdg-from @sdg-to)
+            [pie-target (get @data (mapv str sdg-link)) sdg-link]
+            [:div])]]))))
 
 (defn select-targets [target-from target-to id label]
   [b/columns
@@ -202,12 +210,8 @@
     (fn [citation]
       [:<>
        [:button.button.is-text
-        {:on-click
-         (fn []
-           (.log js/console "Click")
-           (rd/log @activate)
-           (toggle)
-           (rd/log @activate))} [:i.fas.fa-bookmark]]
+        {:on-click toggle #_(fn [] (toggle))}
+        [:i.fas.fa-bookmark]]
        [:div.modal {:class (when @activate "is-active")}
         [:div.modal-background
          {:style {:background-color "rgba(0, 0, 0, 0.5)"}
@@ -228,18 +232,20 @@
     authors))
 
 (defn target-card-detail [m]
-
   (let [reference-data @(rf/subscribe [:references-data-map])
+        neutral-color (fn [a] (str "rgba(150,150,150," a " )"))
         positive-color (fn [a] (str "rgba(51,123,174, " a ")"))
         negative-color (fn [a] (str "rgba(253,60,60," a " )"))
         title (get m "Title")
-        card-color (if (pos? (:score m)) positive-color negative-color)
+        card-color (cond (zero? (:score m)) neutral-color
+                         (pos? (:score m)) positive-color
+                         :else negative-color)
         citation-chicago (get-in reference-data [title "citation"])
         title-corrected
         (let [s (get-in reference-data [title "title_corrected"])]
           (rd/log s)
           (if (seq s) s title))]
-
+    #_(rd/log "title-corrected" title "Score" (:score m) (zero? (:score m)))
     [b/column {:class :is-half}
      [b/card
       {:style {:height "100%"
@@ -332,10 +338,9 @@
        {:alignment "is-centered is-fullwidth" :size :is-large}])))
 
 (defn plot []
-  (let [active-tab (rf/subscribe [:active-tab])
-        interaction-data (rf/subscribe [:interaction-data])]
-    (when-not (seq @interaction-data)
-      (rf/dispatch [:request-interaction-data]))
+  (let [active-tab (rf/subscribe [:active-tab])]
+    (when-not @active-tab
+      (rf/dispatch [:set-active-tab :sdgs-pie]))
     (fn []
       (case @active-tab
         :sdgs-pie [pie-score-distribution-sdg]
@@ -346,7 +351,6 @@
 (defn app []
   [b/section
    [b/container
-    [b/title "Interaction"]
     [tabs]
     [:br]
     [:div {:style {:height 720}}
@@ -355,7 +359,7 @@
 (comment
   (rf/dispatch [:initialize-db])
   (rf/dispatch [:request-interaction-data])
-
+  #_(rf/dispatch [:request-sdg-metadata])
   (def x @(rf/subscribe [:interaction-data-sdgs-targets true]))
 
   (r/render [app] (.getElementById js/document "app"))

@@ -20,6 +20,11 @@
    (get db :heatmap-targets-polarity :positive)))
 
 (reg-sub
+ :interaction-data-loaded?
+ (fn [db _]
+   (get-in db [:loaded? :interaction-data] false)))
+
+(reg-sub
  :interaction-data
  (fn [db _]
    (->>
@@ -38,6 +43,16 @@
    (->> data
         (group-by (fn [m] (get m "title")))
         (reduce-kv #(assoc %1 %2 (first %3)) {}))))
+
+(reg-sub
+ :sdg-metadata
+ (fn [db _]
+   (->> (get-in db [:data :sdg-metadata]))))
+
+(reg-sub
+ :sdg-metadata-map
+ :<- [:sdg-metadata]
+ (fn [ms _] (reduce (fn [acc m] (assoc acc (get m "id") (get m "title"))) {} ms)))
 
 (reg-sub
  :sdg-from
