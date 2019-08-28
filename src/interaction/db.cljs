@@ -12,7 +12,7 @@
    9 {:targets 5}
    10 {:targets 7}
    11 {:targets 7}
-   12 {:targets 7}
+   12 {:targets 8}
    13 {:targets 3}
    14 {:targets 7}
    15 {:targets 9}
