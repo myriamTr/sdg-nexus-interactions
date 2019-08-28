@@ -231,61 +231,122 @@
       (str main-author " et al."))
     authors))
 
+(defn target-card-additional-detail [m]
+  (let [open? (r/atom false)]
+    (fn [m]
+      (if @open?
+        [:div "Open"]
+        [:div "Close"]))))
+
 (defn target-card-detail [m]
-  (let [reference-data @(rf/subscribe [:references-data-map])
-        neutral-color (fn [a] (str "rgba(150,150,150," a " )"))
-        positive-color (fn [a] (str "rgba(51,123,174, " a ")"))
-        negative-color (fn [a] (str "rgba(253,60,60," a " )"))
-        title (get m "Title")
-        card-color (cond (zero? (:score m)) neutral-color
-                         (pos? (:score m)) positive-color
-                         :else negative-color)
-        citation-chicago (get-in reference-data [title "citation"])
-        title-corrected
-        (let [s (get-in reference-data [title "title_corrected"])]
-          (rd/log s)
-          (if (seq s) s title))]
-    #_(rd/log "title-corrected" title "Score" (:score m) (zero? (:score m)))
-    [b/column {:class :is-half}
-     [b/card
-      {:style {:height "100%"
-               :border-width 2
-               :border-radius 5
-               :border-style :solid
-               :border-color (card-color 1)
-               :background-color (card-color 0.2)}}
-      [b/card-header
-       [b/title
-        [:div {:style {:padding 20}}
-         [:a {:href (get-in reference-data [title "link"])
-              :style {:color (card-color 0.8)}
-              :target "_blank"} title-corrected]]]
-       [:a {:class "card-header-icon"
-            :target "_blank"
-            :href (get-in reference-data [title "link"])}
-        [:span.icon
-         [:i {:style {:color (card-color 1)}
-              :class "fas fa-external-link-alt"}]]]]
-      [:div.card-content {:style {:padding 24}}
-       [:div {:style {:display :flex :justify-content :space-between
-                      :align-items :center}}
-        [b/subtitle
-         (str (multiple-authors (m "Author") citation-chicago) ". " (m "Year")
-              (when-not (empty? (m "p.")) (str ". (p. " (m "p.") ")")))]
-        [target-card-detail-modal (get-in reference-data [title "citation"])]]
-       [:div {:style {:padding-top 10}}
-        [:b
-         (:target-from m)
-         [:i.fas.fa-arrow-right {:style {:padding-left 10 :padding-right 10}}]
-         (:target-to m)]
-        [:br]
-        [:b "ICSU Score: " (m "ICSU scale assessment")]]
-       [:div {:style {:padding-top 20}}
-        [:i (get m "Key insight")]]
-       (let [material (get m "Further material:")]
-         (when-not (empty? material)
-           [:<> [:br]
-            [:div "Further: " material]]))]]]))
+  (let [open? (r/atom false)]
+    (fn [m]
+      (let [reference-data @(rf/subscribe [:references-data-map])
+            neutral-color (fn [a] (str "rgba(150,150,150," a " )"))
+            positive-color (fn [a] (str "rgba(51,123,174, " a ")"))
+            negative-color (fn [a] (str "rgba(253,60,60," a " )"))
+            title (get m "Title")
+            card-color (cond (zero? (:score m)) neutral-color
+                             (pos? (:score m)) positive-color
+                             :else negative-color)
+            citation-chicago (get-in reference-data [title "citation"])
+            title-corrected
+            (let [s (get-in reference-data [title "title_corrected"])]
+              (rd/log s)
+              (if (seq s) s title))
+            geographical-place (m "Geographical place")
+            key-facts-figures (m "Key facts and figures")
+            interaction-comment (m "Describe the tradeoffs / Co-benefit of the interaction")
+            governance-role (m "Notes on the role of governance / policy (if mentioned) and the social context")
+            lessons-learned
+            (m "Describe measures taken to mitigate trade-offs or maximise co-benefits; what are the outcomes, experiences and lessons learnt")
+            material (get m "Further material:")]
+
+        (rd/log (keys m) m)
+        (rd/log (multiple-authors (m "Author") citation-chicago))
+        (rd/log (m "Author"))
+        (rd/log citation-chicago)
+
+        [b/column {:class :is-half}
+         [b/card
+          {:style {:display :flex
+                   :justify-content :space-between
+                   :flex-direction :column
+                   :height "100%"
+                   :border-width 2
+                   :border-radius 5
+                   :border-style :solid
+                   :border-color (card-color 1)
+                   :background-color (card-color 0.2)}}
+          [:div {:style {:flex "1 0 auto"}}
+           [b/card-header
+            [b/title
+             [:div {:style {:padding 20}}
+              [:a {:href (get-in reference-data [title "link"])
+                   :style {:color (card-color 0.8)}
+                   :target "_blank"} title-corrected]]]
+            [:a {:class "card-header-icon"
+                 :target "_blank"
+                 :href (get-in reference-data [title "link"])}
+             [:span.icon
+              [:i {:style {:color (card-color 1)}
+                   :class "fas fa-external-link-alt"}]]]]
+           [:div.card-content {:style {:padding 24}}
+            [:div {:style {:display :flex :justify-content :space-between
+                           :align-items :center}}
+             [b/subtitle
+              (str (multiple-authors (m "Author") citation-chicago) ". " (m "Year")
+                   (when-not (empty? (m "p.")) (str ". (p. " (m "p.") ")")))]
+             [target-card-detail-modal (get-in reference-data [title "citation"])]]
+            [:div {:style {:padding-top 10}}
+             [:b
+              (:target-from m)
+              [:i.fas.fa-arrow-right {:style {:padding-left 10 :padding-right 10}}]
+              (:target-to m)]
+             [:br]
+             [:b "ICSU Score " (m "ICSU scale assessment")]]
+
+            ;; geographical-place
+            (when-not (empty? geographical-place)
+              [:div {:style {:padding-top 5 :display :flex :align-items :center}}
+               [:i.fas.fa-globe.fa-2x {:style {:padding-right 20}}]
+               [:b geographical-place]])
+
+            ;; key insight
+            [:div {:style {:padding-top 20}}
+             [:i (get m "Key insight")]]
+
+            (when-not (empty? material)
+              [:<> [:br]
+               [:div [:b "Further material: "] material]])
+
+            (when @open?
+              (when (seq interaction-comment)
+                [:<> [:br]
+                 [:div [:b "Additional information: "] interaction-comment]])
+
+
+              (when (seq key-facts-figures)
+                [:<> [:br]
+                 [:div [:b "Facts & figures: "] key-facts-figures]])
+
+              #_(when governance-role
+                  [:<> [:br]
+                   [:div [:b "Role of governance: "] governance-role]])
+
+              #_(when (seq lessons-learned)
+                  [:<> [:br]
+                   [:div [:b "Lessons learned: "] lessons-learned]]))]]
+
+          [:footer {:class "card-footer"}
+           (when (or (seq interaction-comment)
+                     (seq key-facts-figures))
+             [:a {:class "card-footer-item" :on-click #(swap! open? not)}
+              (if @open?
+                [:span {:class "icon"}
+                 [:i {:class "fas fa-angle-up", :aria-hidden "true"}]]
+                [:span {:class "icon"}
+                 [:i {:class "fas fa-angle-down", :aria-hidden "true"}]])])]]]))))
 
 (defn target-details []
   (let [{:keys [target-from target-to]} (get-targets)
@@ -349,12 +410,13 @@
         [pie-score-distribution-sdg]))))
 
 (defn app []
-  [b/section
-   [b/container
-    [tabs]
-    [:br]
-    [:div {:style {:height 720}}
-     [plot]]]])
+  [:div {:style {:min-height "100vh" :overflow-x :scroll}}
+   [b/section
+    [b/container
+     [tabs]
+     [:br]
+     [:div {:style {:min-height "720px"}}
+      [plot]]]]])
 
 (comment
   (rf/dispatch [:initialize-db])

@@ -196,7 +196,6 @@
          (mapv #(trace-hover % (/ 1 (+ 1 count-targets-to))
                              :to (str sdg-to "." %))
                (range 1 (inc count-targets-to))))]
-    (.log js/console trace-hovers)
     [:<>
      [:> react-plotly
       (-> plotly-common-args
