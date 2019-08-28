@@ -1,94 +1,42 @@
 (ns interaction.views
-  [:require
+  (:require
    [interaction.db :refer [sdgs->targets]]
    [interaction.charts.pie :refer [pie-target pie]]
+   [interaction.descriptions.views :refer (descriptions-view)]
+   [interaction.references.views :refer (references-view)]
    [cljs.pprint :as pprint]
    [clojure.string :as str]
    [reagent.core :as r]
    [reagent.debug :as rd]
    [re-frame.core :as rf]
    [bulma-cljs.core :as b]
-   ["react-plotly.js" :default react-plotly]])
+   ["react-plotly.js" :default react-plotly]))
 
-(def plotly-common-args
-  {:layout {:showlegend true
-            :autosize true
-            :margin {:t 150 :b 50}
-            :title {:x 0.05 :xref :paper :y 1.2
-                    :font {:size 24 :color "#7f7f7f"}}}
-   :style {:width 1080 :height 960}
-   :useResizeHandler true
-   :config {:toImageButtonOptions
-            {:format "png" :height 560 :width 560 :scale 5}
-            :editable false}})
 
-(defn radio [name label checked? event]
-  [:label.radio {:style {:margin-right 5 :margin-left 5}}
-   [:input {:type "radio" :name name :value (-> label str/lower-case)
-            :checked checked? :style {:margin-right 5}
-            :on-click #(rf/dispatch (conj event (keyword (.. % -target -value))))}]
-   label])
+;; ## UI components for navigation
+;;
+;; The intended UX is: SDGs tabs -> Target tabs -> Details (cycle).
 
-(defn radio-sdgs [name label checked?]
-  [radio name label checked? [:choose-sdgs-polarity]])
+(defn tab [key label active-tab]
+  [:li {:class (when (= active-tab key) "is-active")
+        :on-click #(rf/dispatch [:set-active-tab key])}
+   [:a label]])
 
-(defn select-sdgs-polarity []
-  (let [polarity (rf/subscribe [:heatmap-sdgs-polarity])]
+(defn tabs []
+  (let [active-tab (rf/subscribe [:active-tab])]
     (fn []
-      [:div.control
-       [radio-sdgs "polarity" "Positive" (= @polarity :positive)]
-       [radio-sdgs "polarity" "Negative" (= @polarity :negative)]])))
-
-(defn radio-targets [name label checked?]
-  [radio name label checked? [:choose-targets-polarity]])
-
-(defn select-targets-polarity []
-  (let [polarity (rf/subscribe [:heatmap-targets-polarity])]
-    (fn []
-      [:div.control
-       [radio-targets "polarity" "Positive" (= @polarity :positive)]
-       [radio-targets "polarity" "Negative" (= @polarity :negative)]])))
+      [b/tabs
+       [:<>
+        [tab :sdgs-pie "SDGs" @active-tab]
+        [tab :targets-pie "Targets" @active-tab]
+        [tab :targets-details "Interaction Details" @active-tab]
+        [tab :references "References" @active-tab]]
+       {:alignment "is-centered is-fullwidth" :size :is-large}])))
 
 (defn input-field [label input-props]
   [:div.field
    [:label.label label]
    [b/input input-props]])
-
-(defn axis
-  ([title]
-   (axis title false))
-  ([title reversed?]
-   {:type :category :title {:text title}}))
-
-(defn heatmap-sdgs []
-  (let [heatmap-sdgs-polarity (rf/subscribe [:heatmap-sdgs-polarity])]
-    (fn []
-      (let [positive? (= @heatmap-sdgs-polarity :positive)
-            data @(rf/subscribe [:interaction-data-sdgs-sum-plotly positive?])
-            labels (map str (range 1 18))
-            polarity (rf/subscribe [:heatmap-sdgs-polarity])
-            on-click
-            (fn [x]
-              (let [point (-> x .-points first)
-                    [sdg-to sdg-from] ((juxt #(.-x %) #(.-y %)) point)]
-                (rf/dispatch [:choose-targets-polarity @polarity])
-                (rf/dispatch [:set-active-tab :targets])
-                (rf/dispatch [:select-sdg-from sdg-from])
-                (rf/dispatch [:select-sdg-to sdg-to])))]
-        [:<>
-         [:> react-plotly
-          (-> plotly-common-args
-              (assoc-in [:layout :title :text] "SDGS")
-              (assoc :data
-                     [{:z data :x labels :y (reverse labels) :type "heatmap"
-                       :colorscale (if positive? "Blues" "Reds")
-                       :reversescale true
-                       :hovertemplate "From: %{y}<br>To: %{x}<br>Sum: %{z}<extra></extra>"}])
-              (update-in [:layout] assoc
-                         :xaxis (merge {:side :top} (axis "To SDG"))
-                         :yaxis (axis "From SDG" true))
-              (assoc :onClick on-click))]
-         [select-sdgs-polarity]]))))
 
 (defn select-sdgs-for-targets [sdg-from sdg-to]
   (let [s-from (r/atom sdg-from)
@@ -114,72 +62,6 @@
     (fn []
       [select-sdgs-for-targets @sdg-from @sdg-to])))
 
-(defn generate-targets [x]
-  (mapv #(str x "." %) (range 1 (-> x sdgs->targets :targets inc))))
-
-(defn heatmap-targets []
-  (let [heatmap-targets-polarity (rf/subscribe [:heatmap-targets-polarity])]
-    (fn []
-      (let [positive? (= @heatmap-targets-polarity :positive)
-            sdg-from @(rf/subscribe [:sdg-from])
-            sdg-to @(rf/subscribe [:sdg-to])
-            labels-x (generate-targets sdg-to)
-            labels-y (-> sdg-from generate-targets reverse)
-            data @(rf/subscribe [:interaction-data-targets-sum-plotly
-                                 positive? sdg-from sdg-to])
-            hover-template
-            (str "From .%{y}<br>To " "%{x}<br>Sum: %{z}<extra></extra>")
-            on-click
-            (fn [x]
-              (let [point (-> x .-points first)
-                    [target-to target-from] ((juxt #(.-x %) #(.-y %)) point)]
-                (rf/dispatch [:set-active-tab :targets-details])
-                (rf/dispatch [:select-target :from target-from])
-                (rf/dispatch [:select-target :to target-to])));; [:select-target :from]
-            ]
-        [:<>
-         (when (and labels-x labels-y data)
-           [:> react-plotly
-            (-> plotly-common-args
-                (assoc-in [:layout :title :text] "Targets")
-                (assoc :data
-                       [{:z data
-                         :x labels-x
-                         :y labels-y
-                         :type "heatmap"
-                         :colorscale (if positive? "Blues" "Reds")
-                         :reversescale true
-                         :hovertemplate hover-template}])
-                (update-in [:layout] assoc
-                           :xaxis (merge {:side :top} (axis "To Target"))
-                           :yaxis (axis "From Target" true))
-                (assoc :onClick on-click))])
-         [:br]
-         [select-targets-polarity]
-         [select-sdgs-for-targets-container]]))))
-
-(defn pie-score-distribution-sdg []
-  (let [data (rf/subscribe [:interaction-data-sdgs-pie-sum])
-        data-loaded? (rf/subscribe [:interaction-data-loaded?])]
-    (fn []
-      (if @data-loaded?
-        [:<> [pie @data :positive]]
-        [:div]))))
-
-(defn pie-score-distribution-target []
-  (let [data (rf/subscribe [:interaction-data-sdgs-targets])
-        sdg-from (rf/subscribe [:sdg-from])
-        sdg-to (rf/subscribe [:sdg-to])
-        data-loaded? (rf/subscribe [:interaction-data-loaded?])]
-    (fn []
-      (let [sdg-link [@sdg-from @sdg-to]]
-        [:<>
-         [select-sdgs-for-targets-container]
-         [:div {:style {:text-align :center}}
-          (if (and @data-loaded? @sdg-from @sdg-to)
-            [pie-target (get @data (mapv str sdg-link)) sdg-link]
-            [:div])]]))))
-
 (defn select-targets [target-from target-to id label]
   [b/columns
    [b/column {:class :is-half}
@@ -199,15 +81,53 @@
 
 (defn select-target-container []
   (let [{:keys [target-from target-to]} (get-targets)]
-    (fn []
-      [:<>
-       [select-targets @target-from @target-to]])))
+    (fn [] [select-targets @target-from @target-to])))
 
-(defn target-card-detail-modal [citation]
+;; ## Plots
+;; Mainly wrappers around the interaction.charts.pie namespace to display the value
+
+(def plotly-common-args
+  {:layout {:showlegend true
+            :autosize true
+            :margin {:t 150 :b 50}
+            :title {:x 0.05 :xref :paper :y 1.2
+                    :font {:size 24 :color "#7f7f7f"}}}
+   :style {:width 1080 :height 960}
+   :useResizeHandler true
+   :config {:toImageButtonOptions
+            {:format "png" :height 560 :width 560 :scale 5}
+            :editable false}})
+
+(defn pie-score-distribution-sdg []
+  (let [data (rf/subscribe [:interaction-data-sdgs-pie-sum])
+        data-loaded? (rf/subscribe [:interaction-data-loaded?])]
+    (fn []
+      (if @data-loaded? [:<> [pie @data :positive]] [:div]))))
+
+(defn pie-score-distribution-target []
+  (let [data (rf/subscribe [:interaction-data-sdgs-targets])
+        sdg-from (rf/subscribe [:sdg-from])
+        sdg-to (rf/subscribe [:sdg-to])
+        data-loaded? (rf/subscribe [:interaction-data-loaded?])]
+    (fn []
+      (let [sdg-link [@sdg-from @sdg-to]]
+        [:<>
+         [select-sdgs-for-targets-container]
+         [:div {:style {:text-align :center}}
+          (if (and @data-loaded? @sdg-from @sdg-to)
+            [pie-target (get @data (mapv str sdg-link)) sdg-link]
+            [:div])]]))))
+
+;; # Target card interaction details
+;;
+;; Implements cards to display additional data about the interaction found in
+;; the previous tabs
+
+(defn target-card-detail-modal [content]
   (let [activate (r/atom false)
         toggle #(swap! activate not)
         close #(reset! activate false)]
-    (fn [citation]
+    (fn [content]
       [:<>
        [:button.button.is-text
         {:on-click toggle #_(fn [] (toggle))}
@@ -218,7 +138,7 @@
           :on-click toggle}]
         [:div.modal-content
          [b/card {:style {:border-radius 2}}
-          [b/card-content citation]
+          [b/card-content content]
           [:button.button
            {:class ["modal-close" "is-large"]
             :on-click toggle}]]]]])))
@@ -230,13 +150,6 @@
                            (str/join " "))]
       (str main-author " et al."))
     authors))
-
-(defn target-card-additional-detail [m]
-  (let [open? (r/atom false)]
-    (fn [m]
-      (if @open?
-        [:div "Open"]
-        [:div "Close"]))))
 
 (defn target-card-detail [m]
   (let [open? (r/atom false)]
@@ -254,6 +167,15 @@
             (let [s (get-in reference-data [title "title_corrected"])]
               (rd/log s)
               (if (seq s) s title))
+            card-style {:style {:display :flex
+                                :justify-content :space-between
+                                :flex-direction :column
+                                :height "100%"
+                                :border-width 2
+                                :border-radius 5
+                                :border-style :solid
+                                :border-color (card-color 1)
+                                :background-color (card-color 0.2)}}
             geographical-place (m "Geographical place")
             key-facts-figures (m "Key facts and figures")
             interaction-comment (m "Describe the tradeoffs / Co-benefit of the interaction")
@@ -262,22 +184,8 @@
             (m "Describe measures taken to mitigate trade-offs or maximise co-benefits; what are the outcomes, experiences and lessons learnt")
             material (get m "Further material:")]
 
-        (rd/log (keys m) m)
-        (rd/log (multiple-authors (m "Author") citation-chicago))
-        (rd/log (m "Author"))
-        (rd/log citation-chicago)
-
         [b/column {:class :is-half}
-         [b/card
-          {:style {:display :flex
-                   :justify-content :space-between
-                   :flex-direction :column
-                   :height "100%"
-                   :border-width 2
-                   :border-radius 5
-                   :border-style :solid
-                   :border-color (card-color 1)
-                   :background-color (card-color 0.2)}}
+         [b/card card-style
           [:div {:style {:flex "1 0 auto"}}
            [b/card-header
             [b/title
@@ -299,8 +207,7 @@
                    (when-not (empty? (m "p.")) (str ". (p. " (m "p.") ")")))]
              [target-card-detail-modal (get-in reference-data [title "citation"])]]
             [:div {:style {:padding-top 10}}
-             [:b
-              (:target-from m)
+             [:b (:target-from m)
               [:i.fas.fa-arrow-right {:style {:padding-left 10 :padding-right 10}}]
               (:target-to m)]
              [:br]
@@ -325,7 +232,6 @@
                 [:<> [:br]
                  [:div [:b "Additional information: "] interaction-comment]])
 
-
               (when (seq key-facts-figures)
                 [:<> [:br]
                  [:div [:b "Facts & figures: "] key-facts-figures]])
@@ -339,8 +245,7 @@
                    [:div [:b "Lessons learned: "] lessons-learned]]))]]
 
           [:footer {:class "card-footer"}
-           (when (or (seq interaction-comment)
-                     (seq key-facts-figures))
+           (when (or (seq interaction-comment) (seq key-facts-figures))
              [:a {:class "card-footer-item" :on-click #(swap! open? not)}
               (if @open?
                 [:span {:class "icon"}
@@ -383,22 +288,7 @@
               ^{:key (str i "." j)}
               [target-card-detail m])])]))))
 
-(defn tab [key label active-tab]
-  [:li {:class (when (= active-tab key) "is-active")
-        :on-click #(rf/dispatch [:set-active-tab key])}
-   [:a label]])
-
-(defn tabs []
-  (let [active-tab (rf/subscribe [:active-tab])]
-    (fn []
-      [b/tabs
-       [:<>
-        [tab :sdgs-pie "SDGs" @active-tab]
-        [tab :targets-pie "Targets" @active-tab]
-        [tab :targets-details "Details" @active-tab]]
-       {:alignment "is-centered is-fullwidth" :size :is-large}])))
-
-(defn plot []
+(defn main-view []
   (let [active-tab (rf/subscribe [:active-tab])]
     (when-not @active-tab
       (rf/dispatch [:set-active-tab :sdgs-pie]))
@@ -407,6 +297,7 @@
         :sdgs-pie [pie-score-distribution-sdg]
         :targets-pie [pie-score-distribution-target]
         :targets-details [target-details]
+        :references [references-view]
         [pie-score-distribution-sdg]))))
 
 (defn app []
@@ -416,7 +307,7 @@
      [tabs]
      [:br]
      [:div {:style {:min-height "720px"}}
-      [plot]]]]])
+      [main-view]]]]])
 
 (comment
   (rf/dispatch [:initialize-db])

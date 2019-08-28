@@ -1,4 +1,15 @@
+;; ## Interaction visualizations
+;;
+;; The biggest challenge in the task is to create doughnuts charts in a grid
+;; with the position `(i, j)`in the grid being the matching interaction from
+;; the sdg/target `i` to sdg/target `j`. The pie should also includes on-click
+;; behavior that links the two charts. There are some coupling in the events.
+;;
+;; Moreover, there is an additional requirement of replacing the labels by the
+;; associated logo.
+
 (ns interaction.charts.pie
+  "Collect functions for interactions visualizations. "
   (:require
    [interaction.db :refer [sdgs->targets id->title]]
    [cljs.pprint :as pprint]
@@ -8,9 +19,12 @@
    [bulma-cljs.core :as b]
    ["react-plotly.js" :default react-plotly]))
 
-(def chart-colors (reverse ["#337BAE" "#FD3C3C"]))
+(def chart-colors
+  "Color for co-benefits and trade-offs"
+  (reverse ["#337BAE" "#FD3C3C"]))
 
 (def plotly-common-args
+  "Common args for all plots."
   {:layout {:showlegend true
             :autosize true
             :margin {:t 50 :b 50}
@@ -23,7 +37,37 @@
             {:format "png" :height 960 :width 1080 :scale 2.5}
             :editable false}})
 
+(defn wrap-line
+  "Code taken from rosetta https://www.rosettacode.org/wiki/Word_wrap#Clojure"
+  [size text]
+  (cljs.pprint/cl-format
+   nil (str "~{~<~%~1," size ":;~A~> ~}")
+   (clojure.string/split text #" ")))
+
+(defn trace-hover
+  "Create a description on hover on invisible pies to simulate the desired
+  behavior."
+  [target delta direction sdg+target]
+  {:values [100]
+   :type :pie
+   :textinfo "none"
+   :legend "false"
+   :marker {:colors ["rgba(255, 255, 255, 1)"]}
+   :labels "Hover"
+   :name sdg+target
+   :text [(id->title sdg+target)]
+   :showlegend false
+   :hovertemplate
+   (-> (wrap-line 40 (str (id->title sdg+target) "."))
+       (clojure.string/replace #"\n" "<br>")
+       (str "<extra></extra>"))
+   :domain (case direction
+             :to {:row 0 :column target}
+             :from {:row target :column 0})})
+
 (defn sdg->icon-path
+  "Builds the path from the sdg/target to the path icon (logo) in the asset
+  folder."
   ([sdg] (sdg->icon-path sdg nil))
   ([sdg target]
    ;; examples (sdg->icon-path "3" "3.5") or (sdg->icon-path 3 nil)
@@ -36,12 +80,15 @@
           "GOAL_" sdg "_" (when target? "TARGETS_") "PNG"
           "/"
           (if-not target?
-            (str "TheGlobalGoals_Icons_Color_Goal_" sdg ".png")
-            (str "GOAL_" sdg "_TARGET_" target "_SQUARE.png"))))))
+            (str "TheGlobalGoals_Icons_Color_Goal_" sdg "_THUMBNAIL.png")
+            (str "GOAL_" sdg "_TARGET_" target "_SQUARE_THUMBNAIL.png"))))))
 
 (defn sdg->domain [s] (dec (js/parseInt s)))
 
 (defn sdgs->trace
+  "Generate the plotly doughnuts trace from the origin and target sdgs. Bins are
+  provided to create an additional information about the number of sources from
+  which the score has been generated."
   ([v m] (sdgs->trace v m [10 30]))
   ([[sdg-from sdg-to] m bins]
    (let [values ((juxt :positive :negative) m)
@@ -65,30 +112,11 @@
       :sort false
       :marker {:colors chart-colors}})))
 
-(defn trace-hover [target delta direction sdg+target]
-  {:values [100]
-   :type :pie
-   :textinfo "none"
-   :legend "false"
-   :marker {:colors ["rgba(255, 255, 255, 1)"]}
-   :labels "Hover"
-   :name sdg+target
-   :text [(id->title sdg+target)]
-   :showlegend false
-   :hovertemplate (->>
-                   (str/split (str (id->title sdg+target) ".") #"\s")
-                   (partition-all 5)
-                   (mapv #(clojure.string/join " " %))
-                   (interpose "<br>")
-                   flatten
-                   (clojure.string/join " ")
-                   (str "<extra></extra>"))
 
-   :domain (case direction
-             :to {:row 0 :column target}
-             :from {:row target :column 0})})
-
-(defn pie [data polarity]
+(defn pie
+  "Generate the sdg pie. Data is a map with a vector of sdgs as key and
+  interaction data as value.  See `sdgs->trace` for the exact format."
+  [data polarity]
   (let [traces (reduce-kv (fn [m k v] (assoc m k (sdgs->trace k v))) {} data)
         on-click
         (fn [x]
@@ -126,8 +154,10 @@
 
 (defn target->domain [s] (-> s (clojure.string/split #"\.") last js/parseInt dec))
 
-
 (defn target->trace
+  "Similar to sdg->trace but defined at target level. Complexity arise as data is
+  not always defined at target level, so the aggregated key should be used
+  instead."
   ([v m] (target->trace v m [2 4]))
   ([[target-from target-to sdg-from sdg-to] m bins]
    (let [values ((juxt :positive :negative) m)
@@ -163,8 +193,9 @@
       :sort false
       :marker {:colors chart-colors}})))
 
-
-(defn pie-target [data [sdg-from sdg-to]]
+(defn pie-target
+  "Similar to pie. Images and margin are set at the function definition."
+  [data [sdg-from sdg-to]]
   (let [iinc (partial + 2)
         traces
         (reduce-kv
@@ -180,7 +211,6 @@
                    :sizex size-icon :sizey size-icon}
         on-click
         (fn [x]
-          (.log js/console x)
           (let [point (-> x .-points first)
                 [target-from target-to] (-> (.. point -fullData -name)
                     (clojure.string/split #"->"))]
