@@ -3,16 +3,16 @@
   "version": "0.0.1",
   "private": true,
   "devDependencies": {
-    "shadow-cljs": "^2.8.45"
+    "shadow-cljs": "^2.8.52"
   },
   "dependencies": {
     "@fortawesome/free-regular-svg-icons": "^5.10.2",
     "create-react-class": "^15.6.3",
-    "d3": "^5.9.2",
-    "highlight.js": "^9.15.8",
-    "plotly.js": "^1.48.3",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6",
+    "d3": "^5.12.0",
+    "highlight.js": "^9.15.10",
+    "plotly.js": "^1.49.4",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0",
     "react-flip-move": "^3.0.3",
     "react-highlight.js": "^1.0.7",
     "react-plotly.js": "^2.3.0"

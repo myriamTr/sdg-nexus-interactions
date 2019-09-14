@@ -228,21 +228,23 @@
                [:div [:b "Further material: "] material]])
 
             (when @open?
-              (when (seq interaction-comment)
-                [:<> [:br]
-                 [:div [:b "Additional information: "] interaction-comment]])
 
-              (when (seq key-facts-figures)
-                [:<> [:br]
-                 [:div [:b "Facts & figures: "] key-facts-figures]])
+              [:<>
+               (when (seq interaction-comment)
+                 [:<> [:br]
+                  [:div [:b "Additional information: "] interaction-comment]])
 
-              #_(when governance-role
-                  [:<> [:br]
-                   [:div [:b "Role of governance: "] governance-role]])
+               (when (seq key-facts-figures)
+                 [:<> [:br]
+                  [:div [:b "Facts & figures: "] key-facts-figures]])
 
-              #_(when (seq lessons-learned)
-                  [:<> [:br]
-                   [:div [:b "Lessons learned: "] lessons-learned]]))]]
+               #_(when governance-role
+                   [:<> [:br]
+                    [:div [:b "Role of governance: "] governance-role]])
+
+               #_(when (seq lessons-learned)
+                   [:<> [:br]
+                    [:div [:b "Lessons learned: "] lessons-learned]])])]]
 
           [:footer {:class "card-footer"}
            (when (or (seq interaction-comment) (seq key-facts-figures))
