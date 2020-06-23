@@ -1,17 +1,13 @@
 (ns interaction.views
   (:require
-   [interaction.db :refer [sdgs->targets]]
-   [interaction.charts.pie :refer [pie-target pie]]
-   [interaction.descriptions.views :refer (descriptions-view)]
-   [interaction.references.views :refer (references-view)]
-   [cljs.pprint :as pprint]
+   [bulma-cljs.core :as b]
    [clojure.string :as str]
+   [interaction.charts.pie :refer [pie-target pie]]
+   [interaction.references.views :refer (references-view)]
+   [re-frame.core :as rf]
    [reagent.core :as r]
    [reagent.debug :as rd]
-   [re-frame.core :as rf]
-   [bulma-cljs.core :as b]
-   ["react-plotly.js" :default react-plotly]))
-
+   [reagent.dom :as dom]))
 
 ;; ## UI components for navigation
 ;;
@@ -152,36 +148,43 @@
     authors))
 
 (defn target-card-detail [m]
-  (let [open? (r/atom false)]
+  (let [open?               (r/atom false)
+        reference-data-atom (rf/subscribe [:references-data-map])]
     (fn [m]
-      (let [reference-data @(rf/subscribe [:references-data-map])
-            neutral-color (fn [a] (str "rgba(150,150,150," a " )"))
-            positive-color (fn [a] (str "rgba(51,123,174, " a ")"))
-            negative-color (fn [a] (str "rgba(253,60,60," a " )"))
-            title (get m "Title")
-            card-color (cond (zero? (:score m)) neutral-color
-                             (pos? (:score m)) positive-color
-                             :else negative-color)
+      (let [reference-data   @reference-data-atom
+            neutral-color    (fn [a] (str "rgba(150,150,150," a " )"))
+            positive-color   (fn [a] (str "rgba(51,123,174, " a ")"))
+            negative-color   (fn [a] (str "rgba(253,60,60," a " )"))
+            title            (get m "Title")
+            card-color       (cond (zero? (:score m)) neutral-color
+                                   (pos? (:score m))  positive-color
+                                   :else              negative-color)
             citation-chicago (get-in reference-data [title "citation"])
+
             title-corrected
             (let [s (get-in reference-data [title "title_corrected"])]
               (rd/log s)
               (if (seq s) s title))
-            card-style {:style {:display :flex
-                                :justify-content :space-between
-                                :flex-direction :column
-                                :height "100%"
-                                :border-width 2
-                                :border-radius 5
-                                :border-style :solid
-                                :border-color (card-color 1)
+
+            card-style {:style {:display          :flex
+                                :justify-content  :space-between
+                                :flex-direction   :column
+                                :height           "100%"
+                                :border-width     2
+                                :border-radius    5
+                                :border-style     :solid
+                                :border-color     (card-color 1)
                                 :background-color (card-color 0.2)}}
-            geographical-place (m "Geographical place")
-            key-facts-figures (m "Key facts and figures")
+
+            ;; columns names
+            geographical-place  (m "Geographical place")
+            key-facts-figures   (m "Key facts and figures")
             interaction-comment (m "Describe the tradeoffs / Co-benefit of the interaction")
-            governance-role (m "Notes on the role of governance / policy (if mentioned) and the social context")
+            governance-role     (m "Notes on the role of governance / policy (if mentioned) and the social context")
+
             lessons-learned
             (m "Describe measures taken to mitigate trade-offs or maximise co-benefits; what are the outcomes, experiences and lessons learnt")
+
             material (get m "Further material:")]
 
         [b/column {:class :is-half}
@@ -190,18 +193,20 @@
            [b/card-header
             [b/title
              [:div {:style {:padding 20}}
-              [:a {:href (get-in reference-data [title "link"])
-                   :style {:color (card-color 0.8)}
-                   :target "_blank"} title-corrected]]]
-            [:a {:class "card-header-icon"
+              [:a {:href   (get-in reference-data [title "link"])
+                   :style  {:color (card-color 0.8)}
+                   :target "_blank"}
+               title-corrected]]]
+            [:a {:class  "card-header-icon"
                  :target "_blank"
-                 :href (get-in reference-data [title "link"])}
+                 :href   (get-in reference-data [title "link"])}
              [:span.icon
               [:i {:style {:color (card-color 1)}
                    :class "fas fa-external-link-alt"}]]]]
            [:div.card-content {:style {:padding 24}}
-            [:div {:style {:display :flex :justify-content :space-between
-                           :align-items :center}}
+            [:div {:style {:display         :flex
+                           :justify-content :space-between
+                           :align-items     :center}}
              [b/subtitle
               (str (multiple-authors (m "Author") citation-chicago) ". " (m "Year")
                    (when-not (empty? (m "p.")) (str ". (p. " (m "p.") ")")))]
@@ -266,20 +271,20 @@
                     [@target-from @target-to]])
             data-clean
             (->> data
-                 (group-by #(vector (get % "Title") (get % "Key insight")))
+                 (group-by #(vector (get % "Title") (get % "Key insight") (get % "ICSU scale assessment")))
                  vals
                  (mapv
                   (fn [xs]
                     ;; accumulate pages, then keep only distinct and reformat
-                    (-> #(update %1 "p." (fn [s] (str s ", " (get %2 "p."))))
-                        (reduce xs)
-                        (update
-                         "p."
-                         (fn [s] (->> (str/split s #",\s*")
-                                      sort
-                                      distinct
-                                      vec
-                                      (str/join ", "))))))))
+                    (->
+                     (reduce #(update %1 "p." (fn [s] (str s ", " (get %2 "p.")))) xs)
+                     (update
+                      "p."
+                      (fn [s] (->> (str/split s #",\s*")
+                                   sort
+                                   distinct
+                                   vec
+                                   (str/join ", "))))))))
             data-pair (partition 2 2 nil data-clean)]
         [:<>
          [select-target-container]
@@ -317,8 +322,8 @@
   #_(rf/dispatch [:request-sdg-metadata])
   (def x @(rf/subscribe [:interaction-data-sdgs-targets true]))
 
-  (r/render [app] (.getElementById js/document "app"))
-  (r/render [heatmap-sdgs] (.getElementById js/document "app"))
+  (dom/render [app] (.getElementById js/document "app"))
+  (dom/render [heatmap-sdgs] (.getElementById js/document "app"))
   @(rf/subscribe
     [:interaction-data-targets-pair->details ["2" "3"]])
   #_(def interaction-data (rf/subscribe [ :interaction-data])))

@@ -11,13 +11,11 @@
 (ns interaction.charts.pie
   "Collect functions for interactions visualizations. "
   (:require
-   [interaction.db :refer [sdgs->targets id->title]]
+   ["react-plotly.js" :default react-plotly]
    [cljs.pprint :as pprint]
    [clojure.string :as str]
-   [reagent.core :as r]
-   [re-frame.core :as rf :refer (subscribe dispatch)]
-   [bulma-cljs.core :as b]
-   ["react-plotly.js" :default react-plotly]))
+   [interaction.db :refer [sdgs->targets id->title]]
+   [re-frame.core :as rf]))
 
 (def chart-colors
   "Color for co-benefits and trade-offs"
@@ -27,7 +25,7 @@
   "Common args for all plots."
   {:layout {:showlegend true
             :autosize true
-            :margin {:t 50 :b 50}
+            :margin {:t 50 :b 50 :r 150}
             :title {:x 0.05 :xref :paper :y 1.2
                     :font {:size 24 :color "#7f7f7f"}}
             :grid {:rows 18 :columns 18}}
@@ -47,7 +45,7 @@
 (defn trace-hover
   "Create a description on hover on invisible pies to simulate the desired
   behavior."
-  [target delta direction sdg+target]
+  [target _ direction sdg+target]
   {:values [100]
    :type :pie
    :textinfo "none"
@@ -116,7 +114,7 @@
 (defn pie
   "Generate the sdg pie. Data is a map with a vector of sdgs as key and
   interaction data as value.  See `sdgs->trace` for the exact format."
-  [data polarity]
+  [data _]
   (let [traces (reduce-kv (fn [m k v] (assoc m k (sdgs->trace k v))) {} data)
         on-click
         (fn [x]
@@ -136,6 +134,10 @@
      [:> react-plotly
       (-> plotly-common-args
           (assoc-in [:layout :title :text] "SDG-level interactions")
+          (assoc-in [:layout :legend]
+                    {:traceorder :reversed
+                     :x 0.72 :y 1.06 :orientation :h
+                     :font {:size 18}})
           (assoc-in [:layout :xaxis] {:title {:text "From SDG"} :type :category})
           (assoc-in [:layout :yaxis] {:title {:text "To SDG"} :type :category})
           (assoc-in
@@ -236,6 +238,8 @@
                     {:rows (-> count-targets-from (+ 2))
                      :columns (+ 1 count-targets-to)})
           (assoc-in [:layout :title :text] "Target-level interactions")
+          (assoc-in [:layout :legend] {:traceorder :reversed
+                                       :font {:size 18}})
           (assoc-in [:layout :margin] {:l 0 :b 0 :t 60 :r 0})
           (assoc-in [:style] {:width (+ 200 (* 100 (inc count-targets-to)))
                               :height (+ 110 (* 100 (iinc count-targets-from)))})

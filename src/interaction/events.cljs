@@ -1,11 +1,11 @@
 (ns interaction.events
-  [:require
+  (:require
+   ["d3" :as d3]
    [ajax.core :as ajax]
-   [day8.re-frame.http-fx]
    [day8.re-frame.async-flow-fx]
+   [day8.re-frame.http-fx]
    [interaction.db :refer [default-db]]
-   [re-frame.core :as rf :refer (reg-event-db reg-event-fx)]
-   ["d3" :as d3]])
+   [re-frame.core :as rf :refer (reg-event-db reg-event-fx)]))
 
 (reg-event-db
  :initialise-db

@@ -1,8 +1,6 @@
 (ns interaction.references.views
   (:require [bulma-cljs.core :as b]
-            [re-frame.core :as rf]
-            [reagent.core :as reagent]
-            [reagent.debug :as rd]))
+            [re-frame.core :as rf]))
 
 (defn reference [m]
   [b/column {:class [:is-half]}

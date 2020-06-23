@@ -1,8 +1,8 @@
 (ns interaction.subs
-  [:require
+  (:require
+   [clojure.set]
    [interaction.db :refer [sdgs->targets]]
-   [re-frame.core :as rf :refer (reg-sub)]
-   [clojure.set]])
+   [re-frame.core :as rf :refer (reg-sub)]))
 
 (reg-sub
  :active-tab
