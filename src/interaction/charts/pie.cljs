@@ -70,7 +70,7 @@
   ([sdg target]
    ;; examples (sdg->icon-path "3" "3.5") or (sdg->icon-path 3 nil)
    (let [target? (not (nil? target))]
-     (str "/images/goal-" sdg
+     (str "images/goal-" sdg
           "/"
           "GOAL_" sdg "_"
           (if-not target? "PRIMARY_ICON" "TARGETS")
