@@ -45,23 +45,25 @@
 (defn trace-hover
   "Create a description on hover on invisible pies to simulate the desired
   behavior."
-  [target _ direction sdg+target]
-  {:values [100]
-   :type :pie
-   :textinfo "none"
-   :legend "false"
-   :marker {:colors ["rgba(255, 255, 255, 1)"]}
-   :labels "Hover"
-   :name sdg+target
-   :text [(id->title sdg+target)]
-   :showlegend false
-   :hovertemplate
-   (-> (wrap-line 40 (str (id->title sdg+target) "."))
-       (clojure.string/replace #"\n" "<br>")
-       (str "<extra></extra>"))
-   :domain (case direction
-             :to {:row 0 :column target}
-             :from {:row target :column 0})})
+  ([target _ direction sdg+target]
+   (trace-hover target nil direction sdg+target target))
+  ([target _ direction sdg+target domain-val]
+   {:values [100]
+    :type :pie
+    :textinfo "none"
+    :legend "false"
+    :marker {:colors ["rgba(255, 255, 255, 1)"]}
+    :labels "Hover"
+    :name sdg+target
+    :text [(id->title sdg+target)]
+    :showlegend false
+    :hovertemplate
+    (-> (wrap-line 40 (str (id->title sdg+target) "."))
+        (clojure.string/replace #"\n" "<br>")
+        (str "<extra></extra>"))
+    :domain (case direction
+             :to {:row 0 :column domain-val}
+             :from {:row domain-val :column 0})}))
 
 (defn sdg->icon-path
   "Builds the path from the sdg/target to the path icon (logo) in the asset
@@ -111,46 +113,61 @@
       :marker {:colors chart-colors}})))
 
 
+(def sdg-count 3)
+(def sdg-ids [3 15 16])
+
+
 (defn pie
   "Generate the sdg pie. Data is a map with a vector of sdgs as key and
   interaction data as value.  See `sdgs->trace` for the exact format."
   [data _]
-  (let [traces (reduce-kv (fn [m k v] (assoc m k (sdgs->trace k v))) {} data)
+  (let [sdg-ids->domain (zipmap (map str sdg-ids) (map inc (range)))
+        traces (reduce-kv
+                (fn [m k v]
+                  (tap> {:msg [(mapv sdg-ids->domain k)]
+                         :trace (sdgs->trace (mapv sdg-ids->domain k) v)})
+                  (assoc m k (sdgs->trace (mapv sdg-ids->domain k) v))) {} data)
+        sdg-count+1 (inc sdg-count)
         on-click
         (fn [x]
           (let [point (-> x .-points first)
                 [row column] ((juxt #(.-row %) #(.-column %)) (.. point -data -domain))
-                [sdg-from sdg-to] [row column]]
+                [sdg-from sdg-to] [(get sdg-ids (dec row)) (get sdg-ids (dec column))]]
+            (tap> {:msg [[row column]
+                         [sdg-from sdg-to]]})
             (rf/dispatch [:set-active-tab :targets-pie])
             (rf/dispatch [:select-sdg-from sdg-from])
             (rf/dispatch [:select-sdg-to sdg-to])))
         image-map {:xref :paper :yref :paper :xanchor :left :yanchor :top
-                   :sizex (/ 1 18) :sizey (/ 1 18)}
+                   :sizex (/ 1 sdg-count+1) :sizey (/ 1 sdg-count+1)}
         trace-hovers
         (into
-         (mapv #(trace-hover % (/ 1 18) :from (str %)) (range 1 18))
-         (mapv #(trace-hover % (/ 1 18) :to (str %)) (range 1 18)))]
+         (mapv #(trace-hover % (/ 1 sdg-count+1) :from (str %) (sdg-ids->domain (str %)))
+               sdg-ids)
+         (mapv #(trace-hover % (/ 1 sdg-count+1) :to (str %) (sdg-ids->domain (str %)))
+               sdg-ids))]
     [:<>
      [:> react-plotly
       (-> plotly-common-args
           (assoc-in [:layout :title :text] "SDG-level interactions")
+          (assoc-in [:layout :grid] {:rows sdg-count+1 :columns sdg-count+1})
+          (assoc-in [:style] {:width 700 :height 575})
           (assoc-in [:layout :legend]
                     {:traceorder :reversed
-                     :x 0.72 :y 1.06 :orientation :h
+                     :x 0.72 :y 1.13 :orientation :h
                      :font {:size 18}})
           (assoc-in [:layout :xaxis] {:title {:text "From SDG"} :type :category})
           (assoc-in [:layout :yaxis] {:title {:text "To SDG"} :type :category})
           (assoc-in
            [:layout :images]
-           (reduce
-            #(into %1 %2) []
+           (reduce into []
             [[(assoc image-map :source "images/from_to.png" :x -0.002 :y 1.002)]
-             (mapv #(assoc image-map :source (sdg->icon-path %) :x -0.002
-                           :y (- 1 (* % (/ 1 18))))
-                   (range 1 18))
-             (mapv #(assoc image-map :source (sdg->icon-path %)
-                           :x (* % (/ 1 18)) :y 1.002)
-                   (range 1 18))]))
+             (mapv #(assoc image-map :source (sdg->icon-path %2) :x -0.002
+                           :y (- 1 (* (inc %1) (/ 1 sdg-count+1))))
+                   (range (count sdg-ids)) sdg-ids)
+             (mapv #(assoc image-map :source (sdg->icon-path %2)
+                           :x (* (inc %1) (/ 1 sdg-count+1)) :y 1.002)
+                   (range (count sdg-ids)) sdg-ids)]))
           (assoc-in [:data] (into (vals traces) trace-hovers))
           (assoc :onClick on-click))]]))
 

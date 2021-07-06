@@ -98,7 +98,7 @@
   (let [data (rf/subscribe [:interaction-data-sdgs-pie-sum])
         data-loaded? (rf/subscribe [:interaction-data-loaded?])]
     (fn []
-      (if @data-loaded? [:<> [pie @data :positive]] [:div]))))
+      (if @data-loaded? [pie @data :positive] [:div]))))
 
 (defn pie-score-distribution-target []
   (let [data (rf/subscribe [:interaction-data-sdgs-targets])
@@ -321,7 +321,7 @@
   (rf/dispatch [:request-interaction-data])
   #_(rf/dispatch [:request-sdg-metadata])
   (def x @(rf/subscribe [:interaction-data-sdgs-targets true]))
-
+  @(rf/subscribe [:interaction-data-sdgs-pie-sum])
   (dom/render [app] (.getElementById js/document "app"))
   (dom/render [heatmap-sdgs] (.getElementById js/document "app"))
   @(rf/subscribe
