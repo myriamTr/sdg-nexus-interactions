@@ -89,12 +89,14 @@
   "Generate the plotly doughnuts trace from the origin and target sdgs. Bins are
   provided to create an additional information about the number of sources from
   which the score has been generated."
+
   ([v m] (sdgs->trace v m [10 30]))
-  ([[sdg-from sdg-to] m bins]
+  ([v m bins] (sdgs->trace v m [10 30]) v)
+  ([[sdg-from sdg-to] m bins [sdg-from-label sdg-to-label]]
    (let [values ((juxt :positive :negative) m)
          total (reduce + values)
          icon-html " &#x2B95; "
-         trace-hover-name (str sdg-from icon-html sdg-to)]
+         trace-hover-name (str sdg-from-label icon-html sdg-to-label)]
      {:values (reverse values)
       :type :pie
       :labels (reverse ["Co-benefits" "Trade-offs"])
@@ -116,7 +118,6 @@
 (def sdg-count 3)
 (def sdg-ids [3 15 16])
 
-
 (defn pie
   "Generate the sdg pie. Data is a map with a vector of sdgs as key and
   interaction data as value.  See `sdgs->trace` for the exact format."
@@ -124,17 +125,13 @@
   (let [sdg-ids->domain (zipmap (map str sdg-ids) (map inc (range)))
         traces (reduce-kv
                 (fn [m k v]
-                  (tap> {:msg [(mapv sdg-ids->domain k)]
-                         :trace (sdgs->trace (mapv sdg-ids->domain k) v)})
-                  (assoc m k (sdgs->trace (mapv sdg-ids->domain k) v))) {} data)
+                  (assoc m k (sdgs->trace (mapv sdg-ids->domain k) v [10 30] k))) {} data)
         sdg-count+1 (inc sdg-count)
         on-click
         (fn [x]
           (let [point (-> x .-points first)
                 [row column] ((juxt #(.-row %) #(.-column %)) (.. point -data -domain))
                 [sdg-from sdg-to] [(get sdg-ids (dec row)) (get sdg-ids (dec column))]]
-            (tap> {:msg [[row column]
-                         [sdg-from sdg-to]]})
             (rf/dispatch [:set-active-tab :targets-pie])
             (rf/dispatch [:select-sdg-from sdg-from])
             (rf/dispatch [:select-sdg-to sdg-to])))
@@ -146,6 +143,7 @@
                sdg-ids)
          (mapv #(trace-hover % (/ 1 sdg-count+1) :to (str %) (sdg-ids->domain (str %)))
                sdg-ids))]
+
     [:<>
      [:> react-plotly
       (-> plotly-common-args
