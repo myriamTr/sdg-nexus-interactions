@@ -241,15 +241,7 @@
 
                (when (seq key-facts-figures)
                  [:<> [:br]
-                  [:div [:b "Facts & figures: "] key-facts-figures]])
-
-               #_(when governance-role
-                   [:<> [:br]
-                    [:div [:b "Role of governance: "] governance-role]])
-
-               #_(when (seq lessons-learned)
-                   [:<> [:br]
-                    [:div [:b "Lessons learned: "] lessons-learned]])])]]
+                  [:div [:b "Facts & figures: "] key-facts-figures]])])]]
 
           [:footer {:class "card-footer"}
            (when (or (seq interaction-comment) (seq key-facts-figures))

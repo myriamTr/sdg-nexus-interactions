@@ -14,7 +14,8 @@
    ["react-plotly.js" :default react-plotly]
    [cljs.pprint :as pprint]
    [clojure.string :as str]
-   [interaction.db :refer [sdgs->targets id->title]]
+   [interaction.db :as db
+    :refer (sdgs-targets->label sdgs->targets id->title)]
    [re-frame.core :as rf]))
 
 (def chart-colors
@@ -58,7 +59,7 @@
     :text [(id->title sdg+target)]
     :showlegend false
     :hovertemplate
-    (-> (wrap-line 40 (str (id->title sdg+target) "."))
+    (-> (wrap-line 40 (str (id->title (sdgs-targets->label sdg+target sdg+target)) "."))
         (clojure.string/replace #"\n" "<br>")
         (str "<extra></extra>"))
     :domain (case direction
@@ -81,7 +82,9 @@
           "/"
           (if-not target?
             (str "TheGlobalGoals_Icons_Color_Goal_" sdg "_THUMBNAIL.png")
-            (str "GOAL_" sdg "_TARGET_" target "_SQUARE_THUMBNAIL.png"))))))
+            (str "GOAL_" sdg "_TARGET_"
+                 (str/upper-case (sdgs-targets->label target target))
+                 "_SQUARE_THUMBNAIL.png"))))))
 
 (defn sdg->domain [s] (dec (js/parseInt s)))
 
@@ -169,7 +172,9 @@
           (assoc-in [:data] (into (vals traces) trace-hovers))
           (assoc :onClick on-click))]]))
 
-(defn target->domain [s] (-> s (clojure.string/split #"\.") last js/parseInt dec))
+(defn target->domain [s]
+  (-> (db/sdg+target-label->targets-numerical s s)
+      (clojure.string/split #"\.") last js/parseInt dec))
 
 (defn target->trace
   "Similar to sdg->trace but defined at target level. Complexity arise as data is
