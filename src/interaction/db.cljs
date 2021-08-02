@@ -1,23 +1,72 @@
-(ns interaction.db)
+(ns interaction.db
+  (:require [clojure.set :as set]))
+
 
 (def sdgs->targets
-  {1 {:targets 5}
-   2 {:targets 5}
-   3 {:targets 9}
-   4 {:targets 7}
-   5 {:targets 6}
-   6 {:targets 6}
-   7 {:targets 3}
-   8 {:targets 10}
-   9 {:targets 5}
-   10 {:targets 7}
-   11 {:targets 7}
-   12 {:targets 8}
-   13 {:targets 3}
-   14 {:targets 7}
-   15 {:targets 9}
-   16 {:targets 10}
+  {1 {:targets 7}
+   2 {:targets 8}
+   3 {:targets 13}
+   4 {:targets 10}
+   5 {:targets 9}
+   6 {:targets 8}
+   7 {:targets 5}
+   8 {:targets 11}
+   9 {:targets 8}
+   10 {:targets 10}
+   11 {:targets 10}
+   12 {:targets 11}
+   13 {:targets 5}
+   14 {:targets 12}
+   15 {:targets 12}
+   16 {:targets 11}
    17 {:targets 19}})
+
+(def sdgs-targets->label
+  {"1.6" "1.a"
+   "1.7" "1.b"
+   "2.6" "2.a"
+   "2.7" "2.b"
+   "2.8" "2.c"
+   "3.10" "3.a"
+   "3.11" "3.b"
+   "3.12" "3.c"
+   "3.13" "3.d"
+   "4.8"  "4.a"
+   "4.9"  "4.b"
+   "4.10" "4.c"
+   "5.7"  "5.a"
+   "5.8"  "5.b"
+   "5.9"  "5.c"
+   "6.7"  "6.a"
+   "6.8"  "6.b"
+   "7.4"  "7.a"
+   "7.5"  "7.b"
+   "8.10" "8.a"
+   "8.11" "8.b"
+   "9.6"  "9.a"
+   "9.7"  "9.b"
+   "9.8"  "9.c"
+   "10.8" "10.a"
+   "10.9" "10.b"
+   "10.10" "10.c"
+   "11.8" "11.a"
+   "11.9" "11.b"
+   "11.10" "11.c"
+   "12.9" "12.a"
+   "12.10" "12.b"
+   "12.11" "12.c"
+   "13.4" "13.a"
+   "13.5" "13.b"
+   "14.10" "14.a"
+   "14.11" "14.b"
+   "14.12" "14.c"
+   "15.10" "15.a"
+   "15.11" "15.b"
+   "15.12" "15.c"
+   "16.10" "16.a"
+   "16.11" "16.b"})
+
+(def sdg+target-label->targets-numerical (set/map-invert sdgs-targets->label))
 
 (def id->title
   {"1" "1: End poverty in all its forms everywhere",
