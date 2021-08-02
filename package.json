@@ -8,6 +8,7 @@
   "dependencies": {
     "@fortawesome/free-regular-svg-icons": "^5.13.1",
     "create-react-class": "^15.6.3",
+    "d3": "^5.0.0",
     "highlight.js": "^9.18.1",
     "plotly.js": "^2.3.1",
     "react": "^17.0.0",
