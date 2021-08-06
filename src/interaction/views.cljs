@@ -156,6 +156,8 @@
             positive-color   (fn [a] (str "rgba(51,123,174, " a ")"))
             negative-color   (fn [a] (str "rgba(253,60,60," a " )"))
             title            (get m "Title")
+            own-perception?  (= (get m "Type") "Own perception")
+            _                (tap> {:m m})
             card-color       (cond (zero? (:score m)) neutral-color
                                    (pos? (:score m))  positive-color
                                    :else              negative-color)
@@ -187,70 +189,97 @@
 
             material (get m "Further material:")]
 
-        [b/column {:class :is-half}
-         [b/card card-style
-          [:div {:style {:flex "1 0 auto"}}
-           [b/card-header
-            [b/title
-             [:div {:style {:padding 20}}
-              [:a {:href   (get-in reference-data [title "link"])
-                   :style  {:color (card-color 0.8)}
-                   :target "_blank"}
-               title-corrected]]]
-            [:a {:class  "card-header-icon"
-                 :target "_blank"
-                 :href   (get-in reference-data [title "link"])}
-             [:span.icon
-              [:i {:style {:color (card-color 1)}
-                   :class "fas fa-external-link-alt"}]]]]
-           [:div.card-content {:style {:padding 24}}
-            [:div {:style {:display         :flex
-                           :justify-content :space-between
-                           :align-items     :center}}
-             [b/subtitle
-              (str (multiple-authors (m "Author") citation-chicago) ". " (m "Year")
-                   (when-not (empty? (m "p.")) (str ". (p. " (m "p.") ")")))]
-             [target-card-detail-modal (get-in reference-data [title "citation"])]]
-            [:div {:style {:padding-top 10}}
-             [:b (:target-from m)
-              [:i.fas.fa-arrow-right {:style {:padding-left 10 :padding-right 10}}]
-              (:target-to m)]
-             [:br]
-             [:b "ICSU Score " (m "ICSU scale assessment")]]
+        (if own-perception?
+          [b/column {:class :is-half}
+           [b/card card-style
+            [:div {:style {:flex "1 0 auto"}}
+             [b/card-header
+              [b/title
+               [:div {:style {:padding 20}}
+                [:a {:href   (get-in reference-data [title "link"])
+                     :style  {:color (card-color 0.8)}
+                     :target "_blank"}
+                 [:i "Assessment without reference"]]]]]
+             [:div.card-content {:style {:padding 24}}
+              [:div {:style {:display         :flex
+                             :justify-content :space-between
+                             :align-items     :center}}
+               [:div {:style {:padding-top 10}}
+                [:b (:target-from m)
+                 [:i.fas.fa-arrow-right {:style {:padding-left 10 :padding-right 10}}]
+                 (:target-to m)]
+                [:br]
+                [:b "ICSU Score " (m "ICSU scale assessment")]
 
-            ;; geographical-place
-            (when-not (empty? geographical-place)
-              [:div {:style {:padding-top 5 :display :flex :align-items :center}}
-               [:i.fas.fa-globe.fa-2x {:style {:padding-right 20}}]
-               [:b geographical-place]])
+                ;; geographical-place
+                (when-not (empty? geographical-place)
+                  [:div {:style {:padding-top 5 :display :flex :align-items :center}}
+                   [:i.fas.fa-globe.fa-2x {:style {:padding-right 20}}]
+                   [:b geographical-place]])]]]]]]
+          [b/column {:class :is-half}
+           [b/card card-style
+            [:div {:style {:flex "1 0 auto"}}
+             [b/card-header
+              [b/title
+               [:div {:style {:padding 20}}
+                [:a {:href   (get-in reference-data [title "link"])
+                     :style  {:color (card-color 0.8)}
+                     :target "_blank"}
+                 title-corrected]]]
+              [:a {:class  "card-header-icon"
+                   :target "_blank"
+                   :href   (get-in reference-data [title "link"])}
+               [:span.icon
+                [:i {:style {:color (card-color 1)}
+                     :class "fas fa-external-link-alt"}]]]]
+             [:div.card-content {:style {:padding 24}}
+              [:div {:style {:display         :flex
+                             :justify-content :space-between
+                             :align-items     :center}}
+               [b/subtitle
+                (str (multiple-authors (m "Author") citation-chicago) ". " (m "Year")
+                     (when-not (empty? (m "p.")) (str ". (p. " (m "p.") ")")))]
+               [target-card-detail-modal (get-in reference-data [title "citation"])]]
+              [:div {:style {:padding-top 10}}
+               [:b (:target-from m)
+                [:i.fas.fa-arrow-right {:style {:padding-left 10 :padding-right 10}}]
+                (:target-to m)]
+               [:br]
+               [:b "ICSU Score " (m "ICSU scale assessment")]]
 
-            ;; key insight
-            [:div {:style {:padding-top 20}}
-             [:i (get m "Key insight")]]
+              ;; geographical-place
+              (when-not (empty? geographical-place)
+                [:div {:style {:padding-top 5 :display :flex :align-items :center}}
+                 [:i.fas.fa-globe.fa-2x {:style {:padding-right 20}}]
+                 [:b geographical-place]])
 
-            (when-not (empty? material)
-              [:<> [:br]
-               [:div [:b "Further material: "] material]])
+              ;; key insight
+              [:div {:style {:padding-top 20}}
+               [:i (get m "Key insight")]]
 
-            (when @open?
+              (when-not (empty? material)
+                [:<> [:br]
+                 [:div [:b "Further material: "] material]])
 
-              [:<>
-               (when (seq interaction-comment)
-                 [:<> [:br]
-                  [:div [:b "Additional information: "] interaction-comment]])
+              (when @open?
 
-               (when (seq key-facts-figures)
-                 [:<> [:br]
-                  [:div [:b "Facts & figures: "] key-facts-figures]])])]]
+                [:<>
+                 (when (seq interaction-comment)
+                   [:<> [:br]
+                    [:div [:b "Additional information: "] interaction-comment]])
 
-          [:footer {:class "card-footer"}
-           (when (or (seq interaction-comment) (seq key-facts-figures))
-             [:a {:class "card-footer-item" :on-click #(swap! open? not)}
-              (if @open?
-                [:span {:class "icon"}
-                 [:i {:class "fas fa-angle-up", :aria-hidden "true"}]]
-                [:span {:class "icon"}
-                 [:i {:class "fas fa-angle-down", :aria-hidden "true"}]])])]]]))))
+                 (when (seq key-facts-figures)
+                   [:<> [:br]
+                    [:div [:b "Facts & figures: "] key-facts-figures]])])]]
+
+            [:footer {:class "card-footer"}
+             (when (or (seq interaction-comment) (seq key-facts-figures))
+               [:a {:class "card-footer-item" :on-click #(swap! open? not)}
+                (if @open?
+                  [:span {:class "icon"}
+                   [:i {:class "fas fa-angle-up", :aria-hidden "true"}]]
+                  [:span {:class "icon"}
+                   [:i {:class "fas fa-angle-down", :aria-hidden "true"}]])])]]])))))
 
 (defn target-details []
   (let [{:keys [target-from target-to]} (get-targets)
