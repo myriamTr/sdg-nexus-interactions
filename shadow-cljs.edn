@@ -32,9 +32,7 @@
                "re_frame.trace.trace_enabled_QMARK_" true
                day8.re_frame.tracing.trace_enabled? true}}
 
-        :devtools {:http-root "public"
-                   :http-port 8080
-                   :preloads [devtools.preload
+        :devtools {:preloads [devtools.preload
                               shadow.remote.runtime.cljs.browser
                               day8.re-frame-10x.preload]}
         :release

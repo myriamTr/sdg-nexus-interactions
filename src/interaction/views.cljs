@@ -156,6 +156,8 @@
             positive-color   (fn [a] (str "rgba(51,123,174, " a ")"))
             negative-color   (fn [a] (str "rgba(253,60,60," a " )"))
             title            (get m "Title")
+            type             (get m "Type")
+            _ (tap> {:m m})
             card-color       (cond (zero? (:score m)) neutral-color
                                    (pos? (:score m))  positive-color
                                    :else              negative-color)
