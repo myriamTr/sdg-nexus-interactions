@@ -156,6 +156,8 @@
             positive-color   (fn [a] (str "rgba(51,123,174, " a ")"))
             negative-color   (fn [a] (str "rgba(253,60,60," a " )"))
             title            (get m "Title")
+            type             (get m "Type")
+            tag              (get m "Tag")
             card-color       (cond (zero? (:score m)) neutral-color
                                    (pos? (:score m))  positive-color
                                    :else              negative-color)
@@ -163,7 +165,6 @@
 
             title-corrected
             (let [s (get-in reference-data [title "title_corrected"])]
-              (rd/log s)
               (if (seq s) s title))
 
             card-style {:style {:display          :flex
@@ -186,6 +187,7 @@
             (m "Describe measures taken to mitigate trade-offs or maximise co-benefits; what are the outcomes, experiences and lessons learnt")
 
             material (get m "Further material:")]
+
 
         [b/column {:class :is-half}
          [b/card card-style
