@@ -187,7 +187,8 @@
             lessons-learned
             (m "Describe measures taken to mitigate trade-offs or maximise co-benefits; what are the outcomes, experiences and lessons learnt")
 
-            material (get m "Further material:")]
+            material (get m "Further material:")
+            icsu-score (or (m "ICSU score") (m "ICSU scale assessment"))]
 
         (if own-perception?
           [b/column {:class :is-half}
@@ -209,7 +210,7 @@
                  [:i.fas.fa-arrow-right {:style {:padding-left 10 :padding-right 10}}]
                  (:target-to m)]
                 [:br]
-                [:b "ICSU Score " (m "ICSU scale assessment")]
+                [:b "ICSU Score " icsu-score]
 
                 ;; geographical-place
                 (when-not (empty? geographical-place)
@@ -245,7 +246,7 @@
                 [:i.fas.fa-arrow-right {:style {:padding-left 10 :padding-right 10}}]
                 (:target-to m)]
                [:br]
-               [:b "ICSU Score " (m "ICSU scale assessment")]]
+               [:b "ICSU Score " icsu-score]]
 
               ;; geographical-place
               (when-not (empty? geographical-place)
